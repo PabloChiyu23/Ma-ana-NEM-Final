@@ -7,9 +7,17 @@ let ai: GoogleGenAI | null = null;
 
 const getAI = (): GoogleGenAI => {
   if (!ai) {
-    const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY || '';
+    // En Vite, usar import.meta.env para variables de entorno del cliente
+    // En build, Vite reemplaza estas variables en tiempo de compilación
+    const apiKey = 
+      import.meta.env.VITE_GEMINI_API_KEY || 
+      import.meta.env.GEMINI_API_KEY ||
+      (typeof process !== 'undefined' && process.env?.VITE_GEMINI_API_KEY) ||
+      (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY) ||
+      '';
+    
     if (!apiKey) {
-      throw new Error("API Key de Gemini no configurada. Por favor, configura GEMINI_API_KEY en tu archivo .env");
+      throw new Error("API Key de Gemini no configurada. Por favor, configura VITE_GEMINI_API_KEY en las variables de entorno de Vercel.");
     }
     ai = new GoogleGenAI({ apiKey });
   }

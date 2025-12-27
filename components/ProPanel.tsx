@@ -1,11 +1,13 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { SavedLesson } from '../types';
 import FavoriteLessons from './FavoriteLessons';
+import { countSavedLessons } from '../services/supabase';
 
 interface ProPanelProps {
   isPro: boolean;
   favorites: SavedLesson[];
+  userEmail: string | null;
   onBack: () => void;
   onUpgrade: () => void;
   onCancelSubscription: () => void;
@@ -17,6 +19,7 @@ interface ProPanelProps {
 const ProPanel: React.FC<ProPanelProps> = ({ 
   isPro, 
   favorites, 
+  userEmail,
   onBack, 
   onUpgrade, 
   onCancelSubscription,
@@ -24,7 +27,32 @@ const ProPanel: React.FC<ProPanelProps> = ({
   onDeleteLesson,
   onRenameLesson
 }) => {
-  const classesGenerated = favorites.length + 5; // Simulación de uso
+  const [classesGenerated, setClassesGenerated] = useState<number>(0);
+  const [isLoadingCount, setIsLoadingCount] = useState<boolean>(true);
+
+  // Cargar el conteo real desde Supabase
+  useEffect(() => {
+    const loadClassesCount = async () => {
+      setIsLoadingCount(true);
+      try {
+        const count = await countSavedLessons(userEmail);
+        setClassesGenerated(count);
+      } catch (error) {
+        console.error('Error al cargar conteo de clases:', error);
+        setClassesGenerated(0);
+      } finally {
+        setIsLoadingCount(false);
+      }
+    };
+
+    if (userEmail) {
+      loadClassesCount();
+    } else {
+      setClassesGenerated(0);
+      setIsLoadingCount(false);
+    }
+  }, [userEmail]);
+
   const timeSaved = classesGenerated * 45; // 45 mins ahorrados por clase
 
   return (
@@ -39,7 +67,9 @@ const ProPanel: React.FC<ProPanelProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center">
           <div className="text-3xl mb-2">📚</div>
-          <div className="text-2xl font-black text-gray-800">{classesGenerated}</div>
+          <div className="text-2xl font-black text-gray-800">
+            {isLoadingCount ? '...' : classesGenerated}
+          </div>
           <div className="text-sm text-gray-500 font-medium">Clases creadas</div>
         </div>
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center">

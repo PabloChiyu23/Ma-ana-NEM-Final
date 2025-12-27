@@ -217,7 +217,8 @@ const App: React.FC = () => {
       {view === 'pro' ? (
         <ProPanel 
           isPro={isPro} 
-          favorites={favorites} 
+          favorites={favorites}
+          userEmail={userEmail}
           onBack={() => setView('generator')}
           onUpgrade={handleUpgradeClick}
           onCancelSubscription={handleCancelClick}
