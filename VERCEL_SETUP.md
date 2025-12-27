@@ -1,8 +1,12 @@
 # Configuración de Variables de Entorno en Vercel
 
+## 🔒 Seguridad Mejorada
+
+**IMPORTANTE**: La aplicación ahora usa una **API serverless** para llamar a Gemini. La API key está protegida en el servidor y **NO se expone al cliente**.
+
 ## 🚨 Problema Común
 
-Si ves el error: **"API Key de Gemini no configurada"** en producción, es porque las variables de entorno no están configuradas en Vercel.
+Si ves el error: **"API Key de Gemini no configurada"** en producción, es porque la variable de entorno no está configurada en Vercel.
 
 ## ✅ Solución: Configurar Variables en Vercel
 
@@ -16,15 +20,17 @@ Si ves el error: **"API Key de Gemini no configurada"** en producción, es porqu
    - En el menú lateral, haz clic en **Settings**
    - Luego en **Environment Variables**
 
-3. **Agrega las variables**
+3. **Agrega la variable (SIN prefijo VITE_)**
    
-   Agrega estas variables:
+   Agrega esta variable:
    
    | Key | Value | Environment |
    |-----|-------|-------------|
-   | `VITE_GEMINI_API_KEY` | `tu-api-key-de-gemini` | Production, Preview, Development |
+   | `GEMINI_API_KEY` | `tu-api-key-de-gemini` | Production, Preview, Development |
 
-   ⚠️ **Importante**: Usa el prefijo `VITE_` porque es un proyecto Vite.
+   ⚠️ **IMPORTANTE**: 
+   - **NO** uses el prefijo `VITE_` porque esta variable solo está en el servidor
+   - La API key está protegida y no se expone al navegador
 
 4. **Guarda y redespliega**
    - Haz clic en **Save**
@@ -37,8 +43,8 @@ Si ves el error: **"API Key de Gemini no configurada"** en producción, es porqu
 # Instalar Vercel CLI (si no lo tienes)
 npm i -g vercel
 
-# Configurar la variable
-vercel env add VITE_GEMINI_API_KEY
+# Configurar la variable (SIN prefijo VITE_)
+vercel env add GEMINI_API_KEY
 
 # Cuando te pregunte, selecciona:
 # - Para Production: Yes
@@ -60,9 +66,14 @@ vercel --prod
 
 ## 🔒 Seguridad
 
+✅ **API Key Protegida**: La API key de Gemini ahora está en el servidor (API serverless) y **NUNCA** se expone al navegador.
+
 ⚠️ **NUNCA** comitas tu API key al repositorio. Ya está protegida en `.gitignore`.
 
-✅ La variable `VITE_GEMINI_API_KEY` solo es accesible en el cliente (navegador). Esto es necesario porque la aplicación hace las llamadas directamente desde el navegador.
+✅ **Arquitectura segura**:
+- El frontend hace requests a `/api/gemini` (tu API interna)
+- La API serverless en Vercel usa `GEMINI_API_KEY` (solo en servidor)
+- La API key nunca llega al cliente
 
 ## 📝 Verificar que Funciona
 
@@ -77,31 +88,42 @@ Después de configurar y redesplegar:
 
 ### Error persiste después de configurar
 
-1. **Verifica que la variable tenga el prefijo `VITE_`**
-   - Vite solo expone variables con este prefijo al cliente
+1. **Verifica el nombre de la variable**
+   - Debe ser exactamente: `GEMINI_API_KEY` (SIN prefijo `VITE_`)
+   - Esta variable solo existe en el servidor
    
 2. **Redespliega manualmente**
    - A veces Vercel necesita un redeploy para cargar nuevas variables
-   
-3. **Verifica el nombre exacto**
-   - Debe ser exactamente: `VITE_GEMINI_API_KEY` (mayúsculas)
+   - Ve a Deployments → Redeploy
+
+3. **Verifica que la función serverless funcione**
+   - La API está en `/api/gemini.ts`
+   - Vercel debería detectarla automáticamente
 
 4. **Limpia la caché**
    - En Vercel: Settings → General → Clear Build Cache
    - Luego haz un nuevo deploy
 
-### Variables no se cargan en desarrollo local
+### Desarrollo local
 
-Si estás probando localmente, crea un archivo `.env.local`:
+Para desarrollo local, necesitas ejecutar las funciones serverless. Tienes dos opciones:
 
-```env
-VITE_GEMINI_API_KEY=tu-api-key-aqui
-```
-
-Luego reinicia el servidor de desarrollo:
+**Opción 1: Usar Vercel CLI (Recomendado)**
 ```bash
-npm run dev
+# Instalar Vercel CLI
+npm i -g vercel
+
+# Ejecutar en modo desarrollo
+vercel dev
 ```
+
+**Opción 2: Variables de entorno locales**
+Crea un archivo `.env.local`:
+```env
+GEMINI_API_KEY=tu-api-key-aqui
+```
+
+Luego usa `vercel dev` para que las funciones serverless funcionen localmente.
 
 ## 📚 Recursos
 

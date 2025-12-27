@@ -1,27 +1,65 @@
 
-import { GoogleGenAI } from "@google/genai";
 import { LessonParams } from "../types";
 
-// Lazy initialization para evitar errores al cargar el módulo
-let ai: GoogleGenAI | null = null;
-
-const getAI = (): GoogleGenAI => {
-  if (!ai) {
-    // En Vite, usar import.meta.env para variables de entorno del cliente
-    // En build, Vite reemplaza estas variables en tiempo de compilación
-    const apiKey = 
-      import.meta.env.VITE_GEMINI_API_KEY || 
-      import.meta.env.GEMINI_API_KEY ||
-      (typeof process !== 'undefined' && process.env?.VITE_GEMINI_API_KEY) ||
-      (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY) ||
-      '';
+/**
+ * Llama a la API interna de Gemini (serverless function)
+ */
+const callGeminiAPI = async (
+  prompt: string, 
+  systemInstruction: string, 
+  temperature: number = 0.7,
+  model: string = 'gemini-3-flash-preview'
+): Promise<string> => {
+  try {
+    const apiUrl = import.meta.env.VITE_API_URL || '/api/gemini';
     
-    if (!apiKey) {
-      throw new Error("API Key de Gemini no configurada. Por favor, configura VITE_GEMINI_API_KEY en las variables de entorno de Vercel.");
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        prompt,
+        systemInstruction,
+        temperature,
+        model
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Error desconocido' }));
+      
+      if (response.status === 401) {
+        throw new Error('Error de autenticación con la API. Verifica la configuración del servidor.');
+      }
+      
+      if (response.status === 429) {
+        throw new Error('Límite de solicitudes excedido. Por favor, intenta más tarde.');
+      }
+      
+      if (response.status === 500) {
+        throw new Error(errorData.message || 'Error en el servidor. Por favor, intenta más tarde.');
+      }
+      
+      throw new Error(errorData.message || `Error HTTP: ${response.status}`);
     }
-    ai = new GoogleGenAI({ apiKey });
+
+    const data = await response.json();
+    
+    if (!data.success || !data.content) {
+      throw new Error(data.message || 'No se recibió contenido válido de la API');
+    }
+
+    return data.content;
+  } catch (error: any) {
+    // Si es un error de red, dar un mensaje más útil
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new Error('Error de conexión. Verifica tu conexión a internet e intenta nuevamente.');
+    }
+    
+    // Re-lanzar el error con el mensaje apropiado
+    throw error;
   }
-  return ai;
 };
 
 export const generateLessonContent = async (params: LessonParams): Promise<string> => {
@@ -119,13 +157,7 @@ export const generateLessonContent = async (params: LessonParams): Promise<strin
   const prompt = `Genera la planeación para el tema "${params.topic}" dirigida a ${params.grade} con un enfoque ${params.tone}.`;
 
   try {
-    const aiClient = getAI();
-    const response = await aiClient.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: prompt,
-      config: { systemInstruction, temperature: 0.7 },
-    });
-    return response.text || "No pude generar la clase.";
+    return await callGeminiAPI(prompt, systemInstruction, 0.7, "gemini-3-flash-preview");
   } catch (error: any) {
     const errorMessage = error?.message || "Error al conectar con la IA de planeación.";
     throw new Error(errorMessage);
@@ -143,13 +175,7 @@ export const generatePlanBContent = async (params: LessonParams): Promise<string
   const prompt = `Genera un Plan B de emergencia. El enfoque original era "${params.tone}".`;
 
   try {
-    const aiClient = getAI();
-    const response = await aiClient.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: prompt,
-      config: { systemInstruction, temperature: 0.9 },
-    });
-    return response.text || "No pude generar el Plan B.";
+    return await callGeminiAPI(prompt, systemInstruction, 0.9, "gemini-3-flash-preview");
   } catch (error: any) {
     const errorMessage = error?.message || "Error al generar Plan B.";
     throw new Error(errorMessage);
